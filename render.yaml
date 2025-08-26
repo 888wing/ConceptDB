@@ -1,0 +1,72 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: conceptdb-postgres
+    env: docker
+    plan: starter
+    dockerfilePath: ./docker/postgres.Dockerfile
+    envVars:
+      - key: POSTGRES_DB
+        value: conceptdb
+      - key: POSTGRES_USER
+        value: concept_user
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+    disk:
+      name: postgres-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 10
+
+  # Qdrant Vector Database
+  - type: web
+    name: conceptdb-qdrant
+    env: docker
+    plan: starter
+    dockerCommand: ./entrypoint.sh
+    dockerContext: .
+    dockerfilePath: ./docker/qdrant.Dockerfile
+    envVars:
+      - key: QDRANT_LOG_LEVEL
+        value: INFO
+    disk:
+      name: qdrant-data
+      mountPath: /qdrant/storage
+      sizeGB: 5
+
+  # ConceptDB API
+  - type: web
+    name: conceptdb-api
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: POSTGRES_URL
+        fromService:
+          name: conceptdb-postgres
+          type: pserv
+          property: connectionString
+      - key: QDRANT_URL
+        fromService:
+          name: conceptdb-qdrant
+          type: web
+          property: host
+      - key: EVOLUTION_PHASE
+        value: "1"
+      - key: CONCEPT_RATIO
+        value: "0.1"
+    autoDeploy: true
+
+  # Web Studio (Optional)
+  - type: web
+    name: conceptdb-studio
+    env: node
+    plan: starter
+    buildCommand: cd studio && npm install && npm run build
+    startCommand: cd studio && npm run start
+    envVars:
+      - key: NEXT_PUBLIC_CONCEPTDB_URL
+        fromService:
+          name: conceptdb-api
+          type: web
+          property: host

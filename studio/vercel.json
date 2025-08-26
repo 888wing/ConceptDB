@@ -1,0 +1,13 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "env": {
+    "NEXT_PUBLIC_CONCEPTDB_URL": "@conceptdb_api_url"
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_CONCEPTDB_URL": "@conceptdb_api_url"
+    }
+  }
+}
