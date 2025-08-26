@@ -1,13 +1,14 @@
 services:
-  # ConceptDB API - 核心服務
+  # ConceptDB API - 最小化部署版本
   - type: web
     name: conceptdb-api
     env: python
     buildCommand: pip install -r requirements-production.txt
     startCommand: python -m uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
     envVars:
+      # 使用 SQLite 作為開發/演示用途（或連接外部 PostgreSQL）
       - key: DATABASE_URL
-        value: sqlite:///conceptdb.db  # 使用 SQLite 進行演示
+        value: sqlite:///conceptdb.db  # 或使用外部 PostgreSQL URL
       - key: USE_SIMPLE_VECTOR
         value: "true"  # 使用簡單向量存儲
       - key: EVOLUTION_PHASE

@@ -12,11 +12,21 @@ import os
 
 from pydantic import BaseModel
 
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Import core components
-from src.core.pg_storage import PostgreSQLStorage
 from src.core.query_router import QueryRouter
 from src.core.concept_manager import ConceptManager
 from src.core.evolution_tracker import EvolutionTracker
+
+# Database storage (PostgreSQL or SQLite)
+try:
+    from src.core.pg_storage import PostgreSQLStorage
+except ImportError:
+    logger.warning("PostgreSQL not available, using SQLite for demo")
+    from src.core.sqlite_storage import SQLiteStorage as PostgreSQLStorage
 
 # Try to import advanced components, fallback to simple versions
 try:
@@ -27,9 +37,7 @@ except ImportError:
     from src.core.simple_vector_store import SimpleVectorStore as VectorStore
     from src.core.simple_semantic_engine import SimpleSemanticEngine as SemanticEngine
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Note: Logging already configured above
 
 # Global instances
 pg_storage: Optional[PostgreSQLStorage] = None
@@ -77,13 +85,20 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting ConceptDB API Server...")
     
-    # Initialize PostgreSQL
+    # Initialize Database (PostgreSQL or SQLite)
     # Support both DATABASE_URL (Render) and POSTGRES_URL
-    pg_url = os.getenv("DATABASE_URL") or os.getenv(
+    db_url = os.getenv("DATABASE_URL") or os.getenv(
         "POSTGRES_URL", 
         "postgresql://concept_user:concept_pass@localhost:5433/conceptdb"
     )
-    pg_storage = PostgreSQLStorage(pg_url)
+    
+    # Use SQLite if specified or no PostgreSQL available
+    if db_url.startswith("sqlite://"):
+        db_path = db_url.replace("sqlite:///", "")
+        pg_storage = PostgreSQLStorage(db_path)  # SQLiteStorage aliased as PostgreSQLStorage
+    else:
+        pg_storage = PostgreSQLStorage(db_url)
+    
     await pg_storage.connect()
     
     # Initialize Vector Store (Qdrant or Simple)
