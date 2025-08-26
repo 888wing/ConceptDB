@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - 90% precise data storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: conceptdb_postgres
+    environment:
+      POSTGRES_DB: conceptdb
+      POSTGRES_USER: concept_user
+      POSTGRES_PASSWORD: concept_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U concept_user -d conceptdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Qdrant - Vector database for concepts
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: conceptdb_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT_LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ConceptDB API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: conceptdb_api
+    ports:
+      - "8000:8000"
+    environment:
+      # Database connections
+      POSTGRES_URL: postgresql://concept_user:concept_pass@postgres:5432/conceptdb
+      QDRANT_URL: http://qdrant:6333
+      SQLITE_PATH: /app/data/metadata.db
+      
+      # Evolution settings
+      EVOLUTION_PHASE: "1"
+      CONCEPT_RATIO: "0.1"
+      
+      # API settings
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      DEBUG: "true"
+      
+      # OpenAI settings (optional)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src:ro
+      - ./data:/app/data
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Web Studio (Next.js)
+  studio:
+    build:
+      context: ./studio
+      dockerfile: Dockerfile
+    container_name: conceptdb_studio
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_CONCEPTDB_URL: http://localhost:8000
+      NEXT_PUBLIC_CONCEPTDB_API_KEY: ${CONCEPTDB_API_KEY:-}
+    depends_on:
+      - api
+    volumes:
+      - ./studio/src:/app/src:ro
+      - ./studio/public:/app/public:ro
+    command: npm run dev
+
+volumes:
+  postgres_data:
+    driver: local
+  qdrant_data:
+    driver: local
+
+networks:
+  default:
+    name: conceptdb_network
+    driver: bridge

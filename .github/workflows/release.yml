@@ -1,0 +1,145 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Get version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+    
+    # Build and publish Python package
+    - name: Build Python package
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+        python -m build
+    
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        twine upload dist/*
+    
+    # Build and publish npm packages
+    - name: Build and publish CLI
+      working-directory: ./cli
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        npm ci
+        npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version
+        npm run build
+        npm publish --access public
+    
+    - name: Build and publish SDK
+      working-directory: ./sdk/javascript
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        npm ci
+        npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version
+        npm run build
+        npm publish --access public
+    
+    # Build and push Docker images
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          conceptdb/conceptdb:latest
+          conceptdb/conceptdb:${{ steps.version.outputs.VERSION }}
+          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    # Create GitHub Release
+    - name: Create Release Notes
+      id: release_notes
+      run: |
+        cat << EOF > release_notes.md
+        ## ConceptDB v${{ steps.version.outputs.VERSION }}
+        
+        ### 🚀 Installation
+        
+        **CLI Tool:**
+        \`\`\`bash
+        npm install -g @conceptdb/cli@${{ steps.version.outputs.VERSION }}
+        \`\`\`
+        
+        **JavaScript SDK:**
+        \`\`\`bash
+        npm install @conceptdb/sdk@${{ steps.version.outputs.VERSION }}
+        \`\`\`
+        
+        **Python Package:**
+        \`\`\`bash
+        pip install conceptdb==${{ steps.version.outputs.VERSION }}
+        \`\`\`
+        
+        **Docker:**
+        \`\`\`bash
+        docker pull conceptdb/conceptdb:${{ steps.version.outputs.VERSION }}
+        \`\`\`
+        
+        ### 📝 Changelog
+        See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+        
+        ### 🏗️ Phase 1 Progress
+        - 10% Conceptualization achieved
+        - PostgreSQL integration stable
+        - Query router optimized
+        
+        EOF
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body_path: release_notes.md
+        files: |
+          dist/*
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') }}

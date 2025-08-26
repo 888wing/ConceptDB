@@ -1,0 +1,47 @@
+{
+  "name": "@conceptdb/cli",
+  "version": "0.1.0-alpha",
+  "description": "CLI tool for ConceptDB - Evolutionary Concept-Type Database",
+  "main": "dist/index.js",
+  "bin": {
+    "conceptdb": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "conceptdb",
+    "database",
+    "ai",
+    "semantic",
+    "cli"
+  ],
+  "author": "ConceptDB Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.3.1",
+    "inquirer": "^9.2.12",
+    "ora": "^7.0.1",
+    "table": "^6.8.1"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.10.4",
+    "jest": "^29.7.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
