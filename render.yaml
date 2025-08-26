@@ -1,56 +1,44 @@
+databases:
+  # PostgreSQL Database (使用 Render 管理的數據庫)
+  - name: conceptdb-postgres
+    databaseName: conceptdb
+    user: concept_user
+    plan: free  # 或 starter
+
 services:
-  # PostgreSQL Database
-  - type: pserv
-    name: conceptdb-postgres
-    env: docker
-    plan: starter
-    dockerfilePath: ./docker/postgres.Dockerfile
-    envVars:
-      - key: POSTGRES_DB
-        value: conceptdb
-      - key: POSTGRES_USER
-        value: concept_user
-      - key: POSTGRES_PASSWORD
-        generateValue: true
-    disk:
-      name: postgres-data
-      mountPath: /var/lib/postgresql/data
-      sizeGB: 10
 
   # Qdrant Vector Database
   - type: web
     name: conceptdb-qdrant
     env: docker
-    plan: starter
-    dockerCommand: ./entrypoint.sh
-    dockerContext: .
+    plan: free  # 使用免費計劃
+    dockerCommand: ./qdrant
     dockerfilePath: ./docker/qdrant.Dockerfile
     envVars:
       - key: QDRANT_LOG_LEVEL
         value: INFO
-    disk:
-      name: qdrant-data
-      mountPath: /qdrant/storage
-      sizeGB: 5
 
   # ConceptDB API
   - type: web
     name: conceptdb-api
     env: python
-    plan: starter
-    buildCommand: pip install -r requirements.txt
+    plan: free  # 使用免費計劃
+    buildCommand: pip install -r requirements-fixed.txt
     startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: POSTGRES_URL
-        fromService:
+      - key: DATABASE_URL
+        fromDatabase:
           name: conceptdb-postgres
-          type: pserv
+          property: connectionString
+      - key: POSTGRES_URL
+        fromDatabase:
+          name: conceptdb-postgres
           property: connectionString
       - key: QDRANT_URL
         fromService:
           name: conceptdb-qdrant
           type: web
-          property: host
+          property: hostport
       - key: EVOLUTION_PHASE
         value: "1"
       - key: CONCEPT_RATIO
@@ -61,7 +49,7 @@ services:
   - type: web
     name: conceptdb-studio
     env: node
-    plan: starter
+    plan: free  # 使用免費計劃
     buildCommand: cd studio && npm install && npm run build
     startCommand: cd studio && npm run start
     envVars:
@@ -69,4 +57,4 @@ services:
         fromService:
           name: conceptdb-api
           type: web
-          property: host
+          property: hostport

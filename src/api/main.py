@@ -71,7 +71,8 @@ async def lifespan(app: FastAPI):
     logger.info("Starting ConceptDB API Server...")
     
     # Initialize PostgreSQL
-    pg_url = os.getenv(
+    # Support both DATABASE_URL (Render) and POSTGRES_URL
+    pg_url = os.getenv("DATABASE_URL") or os.getenv(
         "POSTGRES_URL", 
         "postgresql://concept_user:concept_pass@localhost:5433/conceptdb"
     )

@@ -1,0 +1,28 @@
+# 簡化版 Render 配置 - 只部署核心 API
+databases:
+  - name: conceptdb-db
+    databaseName: conceptdb
+    user: conceptuser
+
+services:
+  # ConceptDB API - 核心服務
+  - type: web
+    name: conceptdb-api
+    env: python
+    buildCommand: pip install -r requirements-fixed.txt
+    startCommand: python -m uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: conceptdb-db
+          property: connectionString
+      - key: POSTGRES_URL
+        fromDatabase:
+          name: conceptdb-db
+          property: connectionString
+      - key: EVOLUTION_PHASE
+        value: "1"
+      - key: CONCEPT_RATIO
+        value: "0.1"
+      - key: QDRANT_URL
+        value: "http://localhost:6333"  # 暫時使用本地 Qdrant
