@@ -14,11 +14,18 @@ from pydantic import BaseModel
 
 # Import core components
 from src.core.pg_storage import PostgreSQLStorage
-from src.core.vector_store import QdrantStore
-from src.core.semantic_engine import SemanticEngine
 from src.core.query_router import QueryRouter
 from src.core.concept_manager import ConceptManager
 from src.core.evolution_tracker import EvolutionTracker
+
+# Try to import advanced components, fallback to simple versions
+try:
+    from src.core.vector_store import QdrantStore as VectorStore
+    from src.core.semantic_engine import SemanticEngine
+except ImportError:
+    logger.warning("Using simple vector store and semantic engine (production mode)")
+    from src.core.simple_vector_store import SimpleVectorStore as VectorStore
+    from src.core.simple_semantic_engine import SimpleSemanticEngine as SemanticEngine
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,8 +33,8 @@ logger = logging.getLogger(__name__)
 
 # Global instances
 pg_storage: Optional[PostgreSQLStorage] = None
-vector_store: Optional[QdrantStore] = None
-semantic_engine: Optional[SemanticEngine] = None
+vector_store: Optional[Any] = None  # Can be QdrantStore or SimpleVectorStore
+semantic_engine: Optional[Any] = None  # Can be SemanticEngine or SimpleSemanticEngine
 query_router: Optional[QueryRouter] = None
 concept_manager: Optional[ConceptManager] = None
 evolution_tracker: Optional[EvolutionTracker] = None
@@ -79,9 +86,17 @@ async def lifespan(app: FastAPI):
     pg_storage = PostgreSQLStorage(pg_url)
     await pg_storage.connect()
     
-    # Initialize Qdrant
+    # Initialize Vector Store (Qdrant or Simple)
     qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
-    vector_store = QdrantStore(qdrant_url)
+    use_simple = os.getenv("USE_SIMPLE_VECTOR", "true").lower() == "true"
+    
+    if use_simple or "render.com" in os.getenv("RENDER_EXTERNAL_HOSTNAME", ""):
+        # Use simple vector store for production/Render
+        vector_store = VectorStore()
+    else:
+        # Use Qdrant for local development
+        vector_store = VectorStore(qdrant_url)
+    
     await vector_store.initialize()
     
     # Initialize Semantic Engine
