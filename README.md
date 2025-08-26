@@ -5,6 +5,13 @@
 
 ConceptDB is an **Evolutionary Concept-Type Database** that starts as a 10% semantic enhancement layer on top of PostgreSQL and gradually evolves to 100% concept-based operations. Built for the AI era, it bridges the gap between traditional precise data storage and AI-native semantic understanding.
 
+## 🚀 Quick Deploy
+
+### One-Click Deployment
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/github?repo=https://github.com/888wing/ConceptDB)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/888wing/ConceptDB)
+
 ## 🌟 Key Features
 
 - **Hybrid Storage**: 90% PostgreSQL (precise data) + 10% ConceptDB (semantic understanding)

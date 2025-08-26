@@ -1,0 +1,41 @@
+{
+  "name": "ConceptDB",
+  "description": "Evolutionary Concept-Type Database - AI-native database with semantic understanding",
+  "repository": "https://github.com/888wing/ConceptDB",
+  "logo": "https://raw.githubusercontent.com/888wing/ConceptDB/main/logo.png",
+  "keywords": [
+    "database",
+    "semantic-search", 
+    "vector-database",
+    "ai",
+    "postgresql",
+    "conceptual"
+  ],
+  "stack": "container",
+  "env": {
+    "EVOLUTION_PHASE": {
+      "description": "Evolution phase (1-4)",
+      "value": "1"
+    },
+    "CONCEPT_RATIO": {
+      "description": "Conceptualization ratio (0.1 = 10%)",
+      "value": "0.1"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:mini"
+    }
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
