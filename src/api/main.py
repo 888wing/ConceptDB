@@ -3,12 +3,13 @@ ConceptDB API Server
 FastAPI implementation for Phase 1 (10% Concepts + 90% PostgreSQL)
 """
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from typing import Dict, Any, List, Optional
 import logging
 import os
+import time
 
 from pydantic import BaseModel
 
@@ -20,6 +21,13 @@ logger = logging.getLogger(__name__)
 from src.core.query_router import QueryRouter
 from src.core.concept_manager import ConceptManager
 from src.core.evolution_tracker import EvolutionTracker
+from src.core.migrations import MigrationRunner
+
+# Import authentication and services
+from src.api.auth import router as auth_router, init_auth_services, get_current_user
+from src.services.quota_service import QuotaService
+from src.services.usage_service import UsageService
+from src.models.usage import MetricType
 
 # Database storage (PostgreSQL or SQLite)
 try:
@@ -46,6 +54,8 @@ semantic_engine: Optional[Any] = None  # Can be SemanticEngine or SimpleSemantic
 query_router: Optional[QueryRouter] = None
 concept_manager: Optional[ConceptManager] = None
 evolution_tracker: Optional[EvolutionTracker] = None
+quota_service: Optional[QuotaService] = None
+usage_service: Optional[UsageService] = None
 
 
 # Request/Response Models
@@ -81,6 +91,7 @@ async def lifespan(app: FastAPI):
     """Initialize and cleanup resources"""
     global pg_storage, vector_store, semantic_engine
     global query_router, concept_manager, evolution_tracker
+    global quota_service, usage_service
     
     # Startup
     logger.info("Starting ConceptDB API Server...")
@@ -101,18 +112,53 @@ async def lifespan(app: FastAPI):
     
     await pg_storage.connect()
     
+    # Run migrations
+    logger.info("Running database migrations...")
+    migration_runner = MigrationRunner(db_url)
+    try:
+        await migration_runner.run_migrations()
+        logger.info("Database migrations completed")
+    except Exception as e:
+        logger.warning(f"Migration error (may be normal for SQLite): {e}")
+    
     # Initialize Vector Store (Qdrant or Simple)
     qdrant_url = os.getenv("QDRANT_URL", "http://localhost:6333")
+    qdrant_api_key = os.getenv("QDRANT_API_KEY")  # Get API key for Qdrant
     use_simple = os.getenv("USE_SIMPLE_VECTOR", "true").lower() == "true"
     
-    if use_simple or "render.com" in os.getenv("RENDER_EXTERNAL_HOSTNAME", ""):
-        # Use simple vector store for production/Render
-        vector_store = VectorStore()
-    else:
-        # Use Qdrant for local development
-        vector_store = VectorStore(qdrant_url)
+    # Check if we're on Zeabur with Qdrant
+    is_zeabur = "ZEABUR" in os.environ or "zeabur" in os.getenv("ENVIRONMENT", "").lower()
     
-    await vector_store.initialize()
+    if use_simple and not is_zeabur:
+        # Use simple vector store if explicitly requested (and not on Zeabur)
+        logger.info("Using simple vector store")
+        from src.core.simple_vector_store import SimpleVectorStore
+        vector_store = SimpleVectorStore()
+    else:
+        # Try to use Qdrant (for Zeabur or when not using simple)
+        try:
+            logger.info(f"Attempting to connect to Qdrant at {qdrant_url}")
+            logger.info(f"QDRANT_API_KEY is {'set' if qdrant_api_key else 'not set'}")
+            
+            # Import the correct QdrantStore
+            from src.core.vector_store import QdrantStore
+            
+            # Pass API key if available
+            if qdrant_api_key:
+                logger.info("Using Qdrant with API key authentication")
+                vector_store = QdrantStore(url=qdrant_url, api_key=qdrant_api_key)
+            else:
+                logger.info("Using Qdrant without API key")
+                vector_store = QdrantStore(url=qdrant_url)
+            
+            await vector_store.initialize()
+            logger.info("Successfully connected to Qdrant")
+        except Exception as e:
+            logger.warning(f"Failed to connect to Qdrant: {e}, falling back to simple vector store")
+            from src.core.simple_vector_store import SimpleVectorStore
+            vector_store = SimpleVectorStore()
+            await vector_store.initialize()
+            logger.info("Using simple vector store as fallback")
     
     # Initialize Semantic Engine
     semantic_engine = SemanticEngine()
@@ -136,6 +182,13 @@ async def lifespan(app: FastAPI):
     evolution_tracker = EvolutionTracker(
         pg_storage=pg_storage
     )
+    
+    # Initialize Services
+    quota_service = QuotaService(storage=pg_storage)
+    usage_service = UsageService(storage=pg_storage, quota_service=quota_service)
+    
+    # Initialize authentication
+    init_auth_services(pg_storage)
     
     logger.info("ConceptDB API Server initialized successfully")
     
@@ -164,6 +217,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include authentication router
+app.include_router(auth_router)
+
+
+# Usage tracking middleware
+@app.middleware("http")
+async def track_usage(request: Request, call_next):
+    """Track API usage for billing and analytics"""
+    start_time = time.time()
+    
+    # Get organization from auth headers
+    org_id = None
+    auth_header = request.headers.get("Authorization")
+    api_key = request.headers.get("X-API-Key")
+    
+    # Process the request
+    response = await call_next(request)
+    
+    # Track the usage if we have an organization
+    if usage_service and org_id and response.status_code < 500:
+        process_time = (time.time() - start_time) * 1000  # Convert to ms
+        
+        try:
+            await usage_service.track_api_call(
+                organization_id=org_id,
+                endpoint=str(request.url.path),
+                method=request.method,
+                response_time_ms=process_time,
+                status_code=response.status_code
+            )
+        except Exception as e:
+            logger.warning(f"Failed to track usage: {e}")
+    
+    return response
+
 
 # Health check endpoint
 @app.get("/health")
@@ -187,7 +275,7 @@ async def health_check():
 # ==================== Unified Query Interface ====================
 
 @app.post("/api/v1/query")
-async def unified_query(request: QueryRequest):
+async def unified_query(request: QueryRequest, current_user: Optional[Dict] = None):
     """
     Intelligent query routing - accepts both SQL and natural language
     Routes to appropriate layer based on confidence

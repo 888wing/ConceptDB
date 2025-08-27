@@ -23,16 +23,29 @@ logger = logging.getLogger(__name__)
 class QdrantStore:
     """Qdrant vector store for concept embeddings"""
     
-    def __init__(self, url: str = "http://localhost:6333", collection_name: str = "concepts"):
+    def __init__(self, url: str = "http://localhost:6333", collection_name: str = "concepts", api_key: Optional[str] = None):
         self.url = url
         self.collection_name = collection_name
+        self.api_key = api_key
         self.client = None
         self.vector_size = 384  # Size for all-MiniLM-L6-v2 model
         
     async def initialize(self) -> None:
         """Initialize Qdrant client and create collection if needed"""
         try:
-            self.client = QdrantClient(url=self.url)
+            # Initialize client with API key if provided
+            if self.api_key:
+                # Log for debugging
+                logger.info(f"Initializing Qdrant client with URL: {self.url} and API key")
+                # Use correct parameter name for QdrantClient
+                self.client = QdrantClient(
+                    url=self.url,
+                    api_key=self.api_key,
+                    timeout=30
+                )
+            else:
+                logger.info(f"Initializing Qdrant client with URL: {self.url} without API key")
+                self.client = QdrantClient(url=self.url, timeout=30)
             
             # Check if collection exists
             collections = self.client.get_collections()
