@@ -22,6 +22,7 @@ from src.core.query_router import QueryRouter
 from src.core.concept_manager import ConceptManager
 from src.core.evolution_tracker import EvolutionTracker
 from src.core.migrations import MigrationRunner
+from src.core.config_validator import validate_config_on_startup
 
 # Import authentication and services
 from src.api.auth import router as auth_router, init_auth_services, get_current_user
@@ -36,13 +37,19 @@ except ImportError:
     logger.warning("PostgreSQL not available, using SQLite for demo")
     from src.core.sqlite_storage import SQLiteStorage as PostgreSQLStorage
 
-# Try to import advanced components, fallback to simple versions
+# Import vector store implementations
 try:
-    from src.core.vector_store import QdrantStore as VectorStore
+    from src.core.vector_store import QdrantStore
+    from src.core.simple_vector_store import SimpleVectorStore
+except ImportError as e:
+    logger.error(f"Failed to import vector stores: {e}")
+    raise
+
+# Import semantic engine
+try:
     from src.core.semantic_engine import SemanticEngine
 except ImportError:
-    logger.warning("Using simple vector store and semantic engine (production mode)")
-    from src.core.simple_vector_store import SimpleVectorStore as VectorStore
+    logger.warning("Using simple semantic engine (production mode)")
     from src.core.simple_semantic_engine import SimpleSemanticEngine as SemanticEngine
 
 # Note: Logging already configured above
@@ -96,6 +103,12 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting ConceptDB API Server...")
     
+    # Validate configuration
+    logger.info("Validating configuration...")
+    if not validate_config_on_startup():
+        logger.error("Configuration validation failed. Please check your environment variables.")
+        # Continue anyway but log the issues
+    
     # Initialize Database (PostgreSQL or SQLite)
     # Support both DATABASE_URL (Render) and POSTGRES_URL
     db_url = os.getenv("DATABASE_URL") or os.getenv(
@@ -132,16 +145,12 @@ async def lifespan(app: FastAPI):
     if use_simple and not is_zeabur:
         # Use simple vector store if explicitly requested (and not on Zeabur)
         logger.info("Using simple vector store")
-        from src.core.simple_vector_store import SimpleVectorStore
         vector_store = SimpleVectorStore()
     else:
         # Try to use Qdrant (for Zeabur or when not using simple)
         try:
             logger.info(f"Attempting to connect to Qdrant at {qdrant_url}")
             logger.info(f"QDRANT_API_KEY is {'set' if qdrant_api_key else 'not set'}")
-            
-            # Import the correct QdrantStore
-            from src.core.vector_store import QdrantStore
             
             # Pass API key if available
             if qdrant_api_key:
@@ -155,7 +164,6 @@ async def lifespan(app: FastAPI):
             logger.info("Successfully connected to Qdrant")
         except Exception as e:
             logger.warning(f"Failed to connect to Qdrant: {e}, falling back to simple vector store")
-            from src.core.simple_vector_store import SimpleVectorStore
             vector_store = SimpleVectorStore()
             await vector_store.initialize()
             logger.info("Using simple vector store as fallback")

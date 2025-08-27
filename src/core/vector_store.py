@@ -33,19 +33,23 @@ class QdrantStore:
     async def initialize(self) -> None:
         """Initialize Qdrant client and create collection if needed"""
         try:
+            # Get timeout from environment variable or use default
+            import os
+            timeout = int(os.getenv("QDRANT_TIMEOUT", "30"))
+            
             # Initialize client with API key if provided
             if self.api_key:
                 # Log for debugging
-                logger.info(f"Initializing Qdrant client with URL: {self.url} and API key")
+                logger.info(f"Initializing Qdrant client with URL: {self.url} and API key (timeout: {timeout}s)")
                 # Use correct parameter name for QdrantClient
                 self.client = QdrantClient(
                     url=self.url,
                     api_key=self.api_key,
-                    timeout=30
+                    timeout=timeout
                 )
             else:
-                logger.info(f"Initializing Qdrant client with URL: {self.url} without API key")
-                self.client = QdrantClient(url=self.url, timeout=30)
+                logger.info(f"Initializing Qdrant client with URL: {self.url} without API key (timeout: {timeout}s)")
+                self.client = QdrantClient(url=self.url, timeout=timeout)
             
             # Check if collection exists
             collections = self.client.get_collections()
