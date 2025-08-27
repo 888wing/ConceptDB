@@ -1,6 +1,7 @@
 """
 Query Router
 Intelligently routes queries between PostgreSQL (90%) and Concept Layer (10%)
+Enhanced with LLM query processing for Phase 2
 """
 
 import re
@@ -12,6 +13,13 @@ from enum import Enum
 from src.core.pg_storage import PostgreSQLStorage
 from src.core.vector_store import QdrantStore
 from src.core.semantic_engine import SemanticEngine
+
+# Import enhanced LLM processor
+try:
+    from src.core.llm_query_processor import LLMQueryProcessor, ParsedQuery
+    HAS_LLM_PROCESSOR = True
+except ImportError:
+    HAS_LLM_PROCESSOR = False
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +46,22 @@ class QueryRouter:
         pg_storage: PostgreSQLStorage,
         vector_store: QdrantStore,
         semantic_engine: SemanticEngine,
-        concept_threshold: float = 0.8
+        concept_threshold: float = 0.8,
+        use_llm: bool = True
     ):
         self.pg_storage = pg_storage
         self.vector_store = vector_store
         self.semantic_engine = semantic_engine
         self.concept_threshold = concept_threshold
+        
+        # Initialize LLM processor if available
+        self.llm_processor = None
+        if use_llm and HAS_LLM_PROCESSOR:
+            try:
+                self.llm_processor = LLMQueryProcessor()
+                logger.info("Query Router initialized with LLM processor")
+            except Exception as e:
+                logger.warning(f"Failed to initialize LLM processor: {e}")
         
         # Keywords indicating semantic/natural language queries
         self.semantic_keywords = [
