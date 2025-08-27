@@ -1,9 +1,20 @@
 # ConceptDB - Evolutionary Concept-Type Database
 
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/888wing/ConceptDB/releases/tag/v2.0.0)
+[![Phase](https://img.shields.io/badge/phase-2-green.svg)](https://github.com/888wing/ConceptDB)
 [![npm version](https://img.shields.io/npm/v/@conceptdb/cli.svg)](https://www.npmjs.com/package/@conceptdb/cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ConceptDB is an **Evolutionary Concept-Type Database** that starts as a 10% semantic enhancement layer on top of PostgreSQL and gradually evolves to 100% concept-based operations. Built for the AI era, it bridges the gap between traditional precise data storage and AI-native semantic understanding.
+
+## 🎉 Phase 2.0 Released!
+
+**ConceptDB has evolved to Phase 2 (30% Conceptualization)** with major enhancements:
+- 🤖 **LLM-Powered Query Processing** - Natural language understanding with OpenAI integration
+- 🔄 **Bidirectional Sync** - Real-time data consistency between layers
+- 🚀 **Advanced Caching** - Redis/in-memory caching with multiple strategies
+- 🛡️ **Rate Limiting** - Production-ready API protection
+- 📊 **Automatic Evolution** - Self-evolving from Phase 2 → 3 → 4
 
 ## 🚀 Quick Deploy
 
@@ -14,11 +25,38 @@ ConceptDB is an **Evolutionary Concept-Type Database** that starts as a 10% sema
 
 ## 🌟 Key Features
 
-- **Hybrid Storage**: 90% PostgreSQL (precise data) + 10% ConceptDB (semantic understanding)
-- **Natural Language Queries**: Query your data using plain English
-- **Gradual Evolution**: Start safe with PostgreSQL, evolve to full conceptual database
+### Core Capabilities
+- **Hybrid Storage**: 70% PostgreSQL (precise data) + 30% ConceptDB (semantic understanding) in Phase 2
+- **Natural Language Queries**: LLM-powered query understanding with intent detection
+- **Gradual Evolution**: Automated progression from Phase 2 → 3 → 4 based on metrics
 - **Visual Studio**: Web-based interface for exploring concepts and relationships
-- **Developer Friendly**: CLI tool, JavaScript SDK, and REST API
+- **Developer Friendly**: Complete CLI tool, JavaScript SDK, and REST API
+
+### Phase 2 New Features
+- **🤖 Intelligent Query Processing**
+  - OpenAI GPT integration for natural language understanding
+  - Intent detection and confidence scoring
+  - Fallback pattern matching when LLM unavailable
+  
+- **🔄 Automatic Concept Discovery**
+  - TF-IDF based extraction from PostgreSQL data
+  - Clustering to reduce redundancy
+  - Continuous learning from queries
+  
+- **📊 Bidirectional Synchronization**
+  - Real-time, batch, and scheduled sync modes
+  - Conflict resolution with multiple strategies
+  - Change tracking and checkpointing
+  
+- **⚡ Performance & Scalability**
+  - Redis/in-memory caching with LRU/LFU strategies
+  - Multi-strategy rate limiting (sliding window, token bucket)
+  - Performance baseline tracking and optimization
+  
+- **🚀 Evolution Mechanism**
+  - Automated readiness evaluation
+  - Criteria-based phase transitions
+  - Performance and accuracy tracking
 
 ## 🚀 Quick Start
 
@@ -51,15 +89,34 @@ This starts:
 
 Using the CLI:
 ```bash
+# Natural language query (30% concept routing in Phase 2)
 conceptdb query "find users who might churn"
+
+# Check evolution status
+conceptdb evolution
+
+# Extract concepts from existing data
+conceptdb concepts --extract
 ```
 
 Using JavaScript SDK:
 ```javascript
 import { ConceptDB } from '@conceptdb/sdk';
 
-const db = new ConceptDB({ url: 'http://localhost:8000' });
+const db = new ConceptDB({ 
+  url: 'http://localhost:8000',
+  apiKey: process.env.OPENAI_API_KEY // Optional for LLM features
+});
+
+// Natural language query with LLM processing
 const results = await db.query("customers similar to those who bought premium");
+
+// Check evolution metrics
+const metrics = await db.metrics.evolution();
+console.log(`Phase: ${metrics.current_phase}, Conceptualization: ${metrics.concept_percentage}%`);
+
+// Trigger sync between layers
+await db.sync.trigger('bidirectional');
 ```
 
 Using Web Studio:
@@ -225,25 +282,32 @@ Add ConceptDB as a layer on top of your PostgreSQL database to enable:
 
 ## 🔄 Evolution Phases
 
-### Phase 1: Enhancement (10% Concepts) - **Current**
+### Phase 1: Enhancement (10% Concepts) ✅ Complete
 - Add semantic search to existing PostgreSQL
 - No migration required
 - Zero risk to existing operations
 
-### Phase 2: Hybrid (30% Concepts)
-- Intelligent routing between storage layers
-- Best of both worlds
-- Automatic optimization
+### Phase 2: Hybrid (30% Concepts) - **🚀 Current (v2.0.0)**
+- LLM-powered intelligent routing between storage layers
+- Bidirectional synchronization maintains consistency
+- Automatic concept extraction from PostgreSQL data
+- Performance optimization with caching and rate limiting
+- **Evolution Criteria for Phase 3:**
+  - Concept usage > 50%
+  - Query accuracy > 90%
+  - Performance gain > 20%
+  - Data coverage > 50%
 
-### Phase 3: Concept-First (70% Concepts)
+### Phase 3: Concept-First (70% Concepts) - Coming Soon
 - Concepts become primary storage
 - PostgreSQL for critical data only
 - AI-native operations
+- Concept-based indexing
 
-### Phase 4: Pure Concept (100%)
+### Phase 4: Pure Concept (100%) - Future
 - Full conceptual database
 - Revolutionary data understanding
-- Future of databases
+- Complete AI-native architecture
 
 ## 🛠️ Development
 
@@ -342,30 +406,35 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## 🚧 Roadmap
 
-### Q1 2024
+### Q1 2024 ✅ Complete
 - ✅ Phase 1 implementation (10% concepts)
 - ✅ CLI tool
 - ✅ JavaScript SDK
 - ✅ Web Studio
+- ✅ Phase 2 implementation (30% concepts)
+- ✅ LLM integration (OpenAI)
+- ✅ Bidirectional sync
+- ✅ Caching and rate limiting
+- ✅ Evolution mechanism
+
+### Q2 2024 - In Progress
 - ⬜ Python SDK
 - ⬜ Production deployment guide
-
-### Q2 2024
-- ⬜ Phase 2 implementation (30% concepts)
 - ⬜ Advanced routing algorithms
 - ⬜ Performance optimizations
 - ⬜ Enterprise features
 
 ### Q3 2024
 - ⬜ Phase 3 implementation (70% concepts)
-- ⬜ Multi-language SDKs
+- ⬜ Multi-language SDKs (Go, Java, Rust)
 - ⬜ Cloud hosting service
-- ⬜ Advanced visualization
+- ⬜ Advanced visualization with D3.js
 
 ### Q4 2024
 - ⬜ Phase 4 implementation (100% concepts)
-- ⬜ Revolutionary features
+- ⬜ Revolutionary AI-native features
 - ⬜ Industry partnerships
+- ⬜ ConceptDB Cloud Platform
 
 ---
 
